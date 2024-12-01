@@ -2,12 +2,57 @@ from flask import Flask, request, jsonify
 import pickle
 import pandas as pd
 
+# local (and relative) path to dataset used for training
+DATASET_PATH = "../../data/processed/training_boston.csv"
+
 # load the developed xgboost model
 with open("model/xgboost_model.pkl", "rb") as model_file: # rb param for (reading in binary format)
     model = pickle.load(model_file)
 
 app = Flask(__name__)
 
+df = pd.read_csv(DATASET_PATH)
+
+@app.route("/dataset/info", methods=["GET"])
+def dataset_info():
+    """
+    get overall information about the dataset, such as:
+    - number of data points
+    - feature statistics
+    - target feature statistics
+    """
+    try:
+        num_data_points = len(df)
+        stats = {}
+
+        for column in df.columns:
+            stats[column] = {
+                "mean": df[column].mean(),
+                "variance": df[column].var(),
+                "std": df[column].std(),
+                "min val": df[column].min(),
+                "max val": df[column].max(),
+            }
+
+        return jsonify({
+            "num_data_points": num_data_points,
+            "statistics": stats
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/dataset/columns", methods=["GET"])
+def dataset_columns():
+    """
+    get the list of features in the dataset.
+    """
+    try:
+        columns = df.columns.tolist()
+        return jsonify({"columns": columns}), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # predict for single house (single row of data)
 @app.route("/predict", methods=["POST"])
